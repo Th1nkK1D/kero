@@ -537,3 +537,28 @@ func TestEditHost(t *testing.T) {
 		t.Fatalf("a new address kept the connection: %+v", h)
 	}
 }
+
+// While agents work goes by every pane of this machine's sessions, though
+// a session's own status is its lead pane's, and by no remote host's.
+func TestAgentWorksInAnyLocalPane(t *testing.T) {
+	a := testApp(t)
+	a.mergeState(a.local(), a.st)
+	h := withHost(t, a, "build")
+	if a.agentWorks() {
+		t.Error("an agent works with every pane idle")
+	}
+	s := a.session("s1")
+	s.Status = proto.Waiting
+	s.Panes[0].Status = proto.Waiting
+	s.Panes[1].Status = proto.Working
+	if !a.agentWorks() {
+		t.Error("a pane that works behind one that waits went unseen")
+	}
+	s.Panes[1].Status = proto.Idle
+	r := *a.session("rs-build")
+	r.Panes = []proto.Pane{{ID: "rp", Status: proto.Working}}
+	a.replaceSession(h, r)
+	if a.agentWorks() {
+		t.Error("a remote host's agent keeps this machine awake")
+	}
+}

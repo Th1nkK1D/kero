@@ -27,15 +27,27 @@ func (a *App) keepAwake() {
 	case awakeOn:
 		hold = true
 	case awakeAgents:
-		for i := range a.st.Sessions {
-			s := &a.st.Sessions[i]
-			if s.Status == proto.Working && !a.hostOf(s.ID).remote() {
-				hold = true
-				break
+		hold = a.agentWorks()
+	}
+	a.awake.hold(hold)
+}
+
+// agentWorks tells whether a pane of this machine's sessions works. Each
+// pane tells: a session's own status is its lead pane's, and a pane that
+// needs a look takes the lead from one that works.
+func (a *App) agentWorks() bool {
+	for i := range a.st.Sessions {
+		s := &a.st.Sessions[i]
+		if a.hostOf(s.ID).remote() {
+			continue
+		}
+		for j := range s.Panes {
+			if s.Panes[j].Status == proto.Working {
+				return true
 			}
 		}
 	}
-	a.awake.hold(hold)
+	return false
 }
 
 // awakeModeName names a mode of Keep computer awake.
